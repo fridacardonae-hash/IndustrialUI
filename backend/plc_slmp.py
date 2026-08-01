@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import socket
-
+from slmp import SlmpClient
 from backend.config import AppConfig
 from backend.models import ConnectionState, ConnectionStatus
 
@@ -24,10 +23,12 @@ class SlmpPlcClient:
 
         host = self.config.get("plc", "host")
         port = self.config.getint("plc", "port")
+        plc_family = self.config.get("plc", "plc_family", "iq-f")
         try:
-            with socket.create_connection((host, port), timeout=2):
-                return ConnectionStatus("PLC", ConnectionState.ONLINE, f"SLMP TCP {host}:{port}")
-        except OSError as error:
+            # Opens the binary SLMP session without issuing read/write commands.
+            with SlmpClient(host, port=port, plc_family=plc_family):
+                return ConnectionStatus("PLC", ConnectionState.ONLINE, f"SLMP {plc_family} {host}:{port}")
+        except Exception as error:
             return ConnectionStatus("PLC", ConnectionState.OFFLINE, str(error))
 
     def read_machine_state(self) -> dict[str, object]:
