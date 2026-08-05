@@ -11,7 +11,7 @@ class AppConfig:
         self.load()
 
     def load(self) -> None:
-        if not self.parser.read(self.path):
+        if not self.parser.read(self.path, encoding="utf-8-sig"):
             raise FileNotFoundError(f"Configuration file not found: {self.path}")
 
     def get(self, section: str, option: str, fallback: str = "") -> str:
