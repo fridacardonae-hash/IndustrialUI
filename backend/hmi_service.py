@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
@@ -53,3 +53,13 @@ class HmiService:
             self.repository.append_alarm(event)
 
     def production_rows(self) -> list[dict[str, str]]: return self.repository.read_rows("production")
+
+    def production_statistics(self) -> dict[str, object]:
+        rows = self.production_rows()
+        if not rows:
+            return {"total_output": 0, "total_ok": 0, "total_ng": 0, "yield_rate": None, "uph": None, "work_order": "NOT CONFIGURED", "cost": None}
+        latest = rows[-1]
+        output, ok, ng = int(float(latest.get("output", 0))), int(float(latest.get("ok", 0))), int(float(latest.get("ng", 0)))
+        cycle_times = [float(row["cycle_time"]) for row in rows if row.get("cycle_time")]
+        average_ct = sum(cycle_times) / len(cycle_times) if cycle_times else None
+        return {"total_output": output, "total_ok": ok, "total_ng": ng, "yield_rate": (ok / output if output else None), "uph": (3600 / average_ct if average_ct else None), "work_order": latest.get("work_order", "NOT CONFIGURED"), "cost": None}
