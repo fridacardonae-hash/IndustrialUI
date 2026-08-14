@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
@@ -14,8 +14,8 @@ C = {"bg":"#0c1117", "panel":"#151d26", "line":"#2c3946", "accent":"#f5a000", "t
 
 
 class IndustrialHMI:
-    def __init__(self, config: AppConfig, status_service: StatusService) -> None:
-        self.config, self.status_service = config, status_service
+    def __init__(self, config: AppConfig, status_service: StatusService, hmi_service: object | None = None) -> None:
+        self.config, self.status_service, self.hmi_service = config, status_service, hmi_service
         self.csv_logger = UnitCsvLogger(config, Path(__file__).resolve().parent.parent)
         self.root = ctk.CTk(); self.root.title("IndustrialUI | Machine HMI"); self.root.geometry("1440x900"); self.root.minsize(1120, 720); self.root.configure(fg_color=C["bg"])
         ctk.set_appearance_mode("dark")
