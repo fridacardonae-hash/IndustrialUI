@@ -4,7 +4,8 @@ import logging
 from pathlib import Path
 
 from backend.config import AppConfig
-from backend.status_service import StatusService`nfrom backend.hmi_service import HmiService
+from backend.status_service import StatusService
+from backend.hmi_service import HmiService
 from frontend.app import IndustrialHMI
 
 
