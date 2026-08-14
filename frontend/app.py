@@ -21,8 +21,8 @@ class IndustrialHMI:
         ctk.set_appearance_mode("dark")
         self.tabs = ctk.CTkTabview(self.root, fg_color=C["bg"], segmented_button_selected_color=C["accent"], segmented_button_selected_hover_color="#cf8500")
         self.tabs.pack(fill="both", expand=True, padx=18, pady=18)
-        self.overview = self.tabs.add("OVERVIEW"); self.settings = self.tabs.add("CONFIGURATION"); self.sensors = self.tabs.add("SENSOR STATES"); self.logs = self.tabs.add("UNIT LOGS")
-        self._build_overview(); self._build_settings(); self._build_sensors(); self._build_logs(); self._refresh()
+        self.overview = self.tabs.add("OVERVIEW"); self.settings = self.tabs.add("CONFIGURATION"); self.sensors = self.tabs.add("SENSOR STATES"); self.statistics = self.tabs.add("PRODUCTION STATISTICS"); self.alarms = self.tabs.add("ALARM MANAGEMENT"); self.logs = self.tabs.add("DATA STORAGE")
+        self._build_overview(); self._build_settings(); self._build_sensors(); self._build_statistics(); self._build_alarms(); self._build_logs(); self._refresh()
 
     def panel(self, parent): return ctk.CTkFrame(parent, fg_color=C["panel"], border_color=C["line"], border_width=1, corner_radius=8)
     def title(self, parent, text): return ctk.CTkLabel(parent, text=text, font=ctk.CTkFont(size=14, weight="bold"), text_color=C["text"])
@@ -47,7 +47,7 @@ class IndustrialHMI:
         colors={ConnectionState.ONLINE:C["green"],ConnectionState.SIMULATED:C["blue"],ConnectionState.DISABLED:C["gray"],ConnectionState.OFFLINE:C["red"],ConnectionState.ERROR:C["red"]}
         for status in self.status_service.all_statuses():
             row=ctk.CTkFrame(self.connection_rows,fg_color="#202a35",corner_radius=5); row.pack(fill="x",pady=4); ctk.CTkLabel(row,text=status.name.upper(),font=ctk.CTkFont(size=12,weight="bold"),text_color=C["text"]).pack(side="left",padx=10,pady=9); ctk.CTkLabel(row,text=status.state.value,font=ctk.CTkFont(size=11,weight="bold"),text_color=colors[status.state]).pack(side="right",padx=10)
-        self._append_system_log(f"{state} | PLC monitoring status refreshed")
+        if self.hmi_service:`n            snap = self.hmi_service.poll(); self.metric_labels["TOTAL UNITS"].configure(text=str(snap.total_output)); self.metric_labels["TOTAL OK"].configure(text=str(snap.total_ok)); self.metric_labels["TOTAL NG"].configure(text=str(snap.total_ng)); self.metric_labels["CURRENT CT"].configure(text=f"{snap.current_ct:.1f} s"); self.metric_labels["AVERAGE CT"].configure(text=f"{snap.average_ct:.1f} s"); self.metric_labels["OEE"].configure(text=(f"{(snap.availability or 0)*(snap.performance or 0)*(snap.quality or 0)*100:.1f}%" if snap.quality is not None else "N/A")); self.stats_labels["WORK ORDER"].configure(text=snap.work_order); self.stats_labels["WORK ORDER YIELD"].configure(text=f"{(snap.quality or 0)*100:.1f}%"); self._refresh_alarms()`n        self._append_system_log(f"{state} | PLC monitoring status refreshed")
         self.root.after(max(1000,self.config.getint("application","poll_interval_ms",1000)),self._refresh)
 
     def _append_system_log(self, message):
@@ -78,6 +78,34 @@ class IndustrialHMI:
         self.title(self.sensors,"SENSOR STATE MONITOR (OPTIONAL)").grid(row=0,column=0,columnspan=3,sticky="w",padx=8,pady=12)
         for i,name in enumerate(names):
             card=self.panel(self.sensors); card.grid(row=1+i//3,column=i%3,sticky="ew",padx=8,pady=8); ctk.CTkLabel(card,text=name.upper(),font=ctk.CTkFont(size=13,weight="bold")).pack(pady=(16,5)); active=i not in (2,5); ctk.CTkLabel(card,text="SENSING" if active else "NOT ACTIVE",text_color=C["green"] if active else C["red"],font=ctk.CTkFont(size=20,weight="bold")).pack(pady=(0,16))
+
+    def _build_statistics(self):
+        self.statistics.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        self.title(self.statistics, "PRODUCTION STATISTICS").grid(row=0, column=0, columnspan=4, sticky="w", padx=8, pady=12)
+        self.stats_labels = {}
+        for index, (label, value) in enumerate((("HOURLY CAPACITY / UPH", "N/A"), ("DAILY CAPACITY", "N/A"), ("WEEKLY CAPACITY", "N/A"), ("MONTHLY CAPACITY", "N/A"), ("WORK ORDER", "NOT CONFIGURED"), ("WORK ORDER YIELD", "N/A"), ("WORK ORDER COST", "N/A / NOT CONFIGURED"))):
+            card = self.panel(self.statistics); card.grid(row=1 + index // 4, column=index % 4, sticky="nsew", padx=8, pady=8)
+            ctk.CTkLabel(card, text=label, font=ctk.CTkFont(size=11, weight="bold"), text_color=C["muted"]).pack(padx=14, pady=(20, 5))
+            value_label = ctk.CTkLabel(card, text=value, font=ctk.CTkFont(size=18, weight="bold"), text_color=C["accent"]); value_label.pack(padx=14, pady=(0, 20)); self.stats_labels[label] = value_label
+
+    def _build_alarms(self):
+        self.alarms.grid_columnconfigure(0, weight=1); self.alarms.grid_rowconfigure(1, weight=1)
+        card = self.panel(self.alarms); card.grid(sticky="nsew")
+        self.title(card, "ALARM MANAGEMENT / HISTORY").grid(row=0, column=0, sticky="w", padx=18, pady=14)
+        controls = ctk.CTkFrame(card, fg_color="transparent"); controls.grid(row=0, column=1, padx=18, pady=10)
+        ctk.CTkButton(controls, text="SIMULATE ALARM", fg_color=C["red"], command=self._simulate_alarm).pack(side="left", padx=4)
+        ctk.CTkButton(controls, text="CLEAR SIM-001", fg_color="#263441", command=self._clear_alarm).pack(side="left", padx=4)
+        card.grid_columnconfigure(0, weight=1); card.grid_rowconfigure(1, weight=1)
+        self.alarm_box = ctk.CTkTextbox(card, fg_color="#090d12", font=ctk.CTkFont(family="Consolas", size=12)); self.alarm_box.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=18, pady=(0, 18)); self._refresh_alarms()
+
+    def _simulate_alarm(self):
+        if self.hmi_service: self.hmi_service.create_simulated_alarm(); self._refresh_alarms()
+    def _clear_alarm(self):
+        if self.hmi_service: self.hmi_service.clear_alarm("SIM-001", "Operator"); self._refresh_alarms()
+    def _refresh_alarms(self):
+        if not hasattr(self, "alarm_box"): return
+        rows = self.hmi_service.alarms() if self.hmi_service else []
+        self.alarm_box.delete("1.0", "end"); self.alarm_box.insert("end", "No active or historical alarms.\n" if not rows else "\n".join(" | ".join(f"{k}={v}" for k,v in row.items()) for row in rows))
 
     def _build_logs(self):
         self.logs.grid_columnconfigure(0,weight=1); self.logs.grid_rowconfigure(1,weight=1); card=self.panel(self.logs); card.grid(sticky="nsew"); self.title(card,"UNIT CSV LOG STORAGE").grid(row=0,column=0,sticky="w",padx=18,pady=(16,4)); self.log_path=ctk.CTkLabel(card,text=str(self.csv_logger.path),text_color=C["blue"]); self.log_path.grid(row=1,column=0,sticky="w",padx=18); ctk.CTkLabel(card,text="One row is stored for every unit: timestamp, unit ID, result, cycle time, machine state and alarm code.",text_color=C["muted"]).grid(row=2,column=0,sticky="w",padx=18,pady=(2,10)); ctk.CTkButton(card,text="REFRESH RECORDS",command=self._load_records,fg_color="#263441").grid(row=0,column=1,padx=18,pady=12); card.grid_columnconfigure(0,weight=1); self.records=ctk.CTkTextbox(card,fg_color="#090d12",font=ctk.CTkFont(family="Consolas",size=12)); self.records.grid(row=3,column=0,columnspan=2,sticky="nsew",padx=18,pady=(0,18)); card.grid_rowconfigure(3,weight=1); self._load_records()
