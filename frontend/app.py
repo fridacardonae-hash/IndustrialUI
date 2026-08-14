@@ -66,7 +66,7 @@ class IndustrialHMI:
     def _settings_form(self):
         for child in self.auth_panel.winfo_children(): child.destroy()
         f=ctk.CTkScrollableFrame(self.auth_panel,fg_color="transparent"); f.pack(fill="both",expand=True,padx=22,pady=18); self.entries={}; self.title(f,"CONNECTION CONFIGURATION").pack(anchor="w",pady=(0,12))
-        for title,section,fields in [("PLC (SLMP)","plc",["host","port"]),("CAMERAS","cameras",["host","port"]),("ROBOT","robot",["host","port"]),("MES","mes",["enabled","host","port"]),("UNIT LOGS","unit_logs",["directory","file_name"])]:
+        for title,section,fields in [("PLC (SLMP)","plc",["host","port"]),("CAMERAS","cameras",["host","port"]),("ROBOT","robot",["host","port"]),("PROCESS PARAMETERS","process_parameters",["pressure_lower","pressure_upper","holding_time_seconds","run_speed","inspection_lower","inspection_upper"]),("MES","mes",["enabled","host","port"]),("UNIT LOGS","unit_logs",["directory","file_name"])]:
             card=ctk.CTkFrame(f,fg_color="#202a35"); card.pack(fill="x",pady=6); ctk.CTkLabel(card,text=title,font=ctk.CTkFont(size=13,weight="bold"),text_color=C["accent"]).grid(row=0,column=0,columnspan=2,sticky="w",padx=12,pady=8); card.grid_columnconfigure(1,weight=1)
             for i,field in enumerate(fields,1):
                 ctk.CTkLabel(card,text=field.replace("_"," ").upper(),text_color=C["muted"]).grid(row=i,column=0,sticky="w",padx=12,pady=5); e=ctk.CTkEntry(card); e.insert(0,self.config.get(section,field)); e.grid(row=i,column=1,sticky="ew",padx=12,pady=5); self.entries[(section,field)]=e
